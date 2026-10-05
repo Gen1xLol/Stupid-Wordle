@@ -197,7 +197,6 @@
 
 <svelte:head>
   <title>Stupid Wordle</title>
-  <meta name="description" content="Eight letters. Six guesses. Earn bullets with exact hits and shoot to reveal letters." />
 </svelte:head>
 
 <main class="app-shell" class:roulette-shell={mode === 'roulette'}>
