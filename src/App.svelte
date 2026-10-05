@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte'
+  import { fade, fly } from 'svelte/transition'
   import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
   import { ArrowLeft, ArrowRight, Crosshair, Delete, MoveDown, Dices } from 'lucide-svelte'
   import GravityMode from './GravityMode.svelte'
@@ -219,8 +220,9 @@
   <title>Stupid Wordle</title>
 </svelte:head>
 
-<main class="app-shell" class:roulette-shell={mode === 'roulette'}>
+<main class="app-shell" class:roulette-shell={page === 'game' && mode === 'roulette'}>
   {#if page === 'menu'}
+    <div class="screen-view" in:fly={{ y: 10, duration: 220 }} out:fade={{ duration: 130 }}>
     <header class="masthead">
       <a class="brand" href="./" aria-label="Stupid Wordle home">STUPID WORDLE</a>
       {#if dailyMode}<span class="menu-daily-countdown">{dailyCountdown} until next word</span>{/if}
@@ -238,27 +240,33 @@
           <option value="hard">Hard</option>
         </select>
       </label>
-      <button class="mode-card" type="button" onclick={openGame}>
+      <button class="mode-card" type="button" onclick={openGame} in:fly={{ y: 8, duration: 180, delay: 40 }}>
         <span class="mode-icon"><Crosshair size={21} strokeWidth={1.8} /></span>
         <span class="mode-copy"><strong>Wordle, but I have a Gun</strong><small>Get greens, acquire ammo, shoot to reveal</small></span>
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
       </button>
-      <button class="mode-card gravity-mode-card" type="button" onclick={openGravity}>
+      <button class="mode-card gravity-mode-card" type="button" onclick={openGravity} in:fly={{ y: 8, duration: 180, delay: 85 }}>
         <span class="mode-icon gravity-mode-icon"><MoveDown size={21} strokeWidth={1.8} /></span>
         <span class="mode-copy"><strong>Wordle, but gravity was just invented</strong><small>Letters fall around with realistic-ish physics.</small></span>
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
       </button>
-      <button class="mode-card roulette-mode-card" type="button" onclick={openRoulette}>
+      <button class="mode-card roulette-mode-card" type="button" onclick={openRoulette} in:fly={{ y: 8, duration: 180, delay: 130 }}>
         <span class="mode-icon roulette-mode-icon"><Dices size={21} strokeWidth={1.8} /></span>
         <span class="mode-copy"><strong>Wordle, but it's Russian Roulette</strong><small>Every guess costs a letter, win it back in a mini Wordle</small></span>
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
       </button>
     </section>
+    </div>
   {:else if mode === 'gravity'}
-    <GravityMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} {difficulty} />
+    <div class="screen-view" in:fly={{ x: 14, duration: 220 }} out:fly={{ x: -10, duration: 150 }}>
+      <GravityMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} {difficulty} />
+    </div>
   {:else if mode === 'roulette'}
-    <RouletteMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} {difficulty} />
+    <div class="screen-view" in:fly={{ x: 14, duration: 220 }} out:fly={{ x: -10, duration: 150 }}>
+      <RouletteMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} {difficulty} />
+    </div>
   {:else}
+    <div class="screen-view" in:fly={{ x: 14, duration: 220 }} out:fly={{ x: -10, duration: 150 }}>
     <header class="game-header">
       <button class="back-button" type="button" aria-label="Back to variants" onclick={() => page = 'menu'}><ArrowLeft size={18} strokeWidth={1.8} /></button>
       <h1>Wordle, but I have a Gun{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
@@ -311,6 +319,7 @@
         {/if}
       </div>
     </section>
+    </div>
   {/if}
   <footer class="site-footer">made by <a href="https://gen1xlol.github.io/" target="_blank" rel="noopener noreferrer">gen1x</a>, 2026</footer>
 </main>
