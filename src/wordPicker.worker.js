@@ -7,7 +7,7 @@ const profaneWords = new Set(profanityFilter.list
 const wordFiles = new Map()
 const wordsByLength = new Map()
 const revivalWordsByLength = new Map()
-let answerWordsPromise
+let hardAnswerWordsPromise
 let allowedWordsPromise
 let revivalWordsPromise
 
@@ -30,12 +30,12 @@ function fetchWords(fileName) {
   return wordFiles.get(fileName)
 }
 
-function loadAnswerWords() {
-  if (!answerWordsPromise) {
-    answerWordsPromise = fetchWords('top_english_words_lower_1000000.txt')
+function loadHardAnswerWords() {
+  if (!hardAnswerWordsPromise) {
+    hardAnswerWordsPromise = fetchWords('top_english_words_lower_1000000.txt')
       .then((words) => words.filter((word) => !profaneWords.has(word)))
   }
-  return answerWordsPromise
+  return hardAnswerWordsPromise
 }
 
 function loadAllowedWords() {
@@ -53,26 +53,27 @@ function loadRevivalWords() {
   return revivalWordsPromise
 }
 
-async function getWords(length) {
-  const words = await loadAnswerWords()
+async function getWords(length, difficulty = 'normal') {
+  const words = difficulty === 'hard' ? await loadHardAnswerWords() : await loadRevivalWords()
   if (length === undefined) return words
-  if (!wordsByLength.has(length)) wordsByLength.set(length, words.filter((word) => word.length === length))
-  return wordsByLength.get(length)
+  const cacheKey = `${difficulty}:${length}`
+  if (!wordsByLength.has(cacheKey)) wordsByLength.set(cacheKey, words.filter((word) => word.length === length))
+  return wordsByLength.get(cacheKey)
 }
 
-async function getRandomWord(length) {
-  const words = await getWords(length)
+async function getRandomWord(length, difficulty) {
+  const words = await getWords(length, difficulty)
   if (!words.length) throw new Error('No words are available for this game mode.')
   return words[Math.floor(Math.random() ** 2 * words.length)]
 }
 
-async function getDailyWord(length, timestamp) {
-  const words = await getWords(length)
+async function getDailyWord(length, timestamp, difficulty) {
+  const words = await getWords(length, difficulty)
   if (!words.length) throw new Error('No words are available for this game mode.')
   const date = new Date(timestamp)
   const dateKey = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
   let hash = 2166136261
-  for (const character of `${dateKey}:${length}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  for (const character of `${dateKey}:${length}:${difficulty}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
   const position = (hash >>> 0) / 0x100000000
   return words[Math.floor(position ** 2 * words.length)]
 }
@@ -86,9 +87,9 @@ async function getRandomRevivalWord(length) {
 }
 
 async function handleRequest(action, data) {
-  if (action === 'getWords') return getWords(data.length)
-  if (action === 'getRandomWord') return getRandomWord(data.length)
-  if (action === 'getDailyWord') return getDailyWord(data.length, data.date)
+  if (action === 'getWords') return getWords(data.length, data.difficulty)
+  if (action === 'getRandomWord') return getRandomWord(data.length, data.difficulty)
+  if (action === 'getDailyWord') return getDailyWord(data.length, data.date, data.difficulty)
   if (action === 'getRandomRevivalWord') return getRandomRevivalWord(data.length)
   if (action === 'isAllowedWord') {
     const words = await loadAllowedWords()

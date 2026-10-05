@@ -227,6 +227,32 @@ button:disabled { cursor: default; }
 .daily-setting input:checked::before { transform: translateX(1.2rem); }
 .daily-setting input:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
+.difficulty-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+.difficulty-setting select {
+  min-width: 7rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.65rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.difficulty-setting select:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
 .mode-arrow {
   color: var(--muted);
   transition: transform 0.2s, color 0.2s;

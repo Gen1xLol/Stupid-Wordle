@@ -7,7 +7,7 @@
   const miniLength = 4
   const miniMaxGuesses = 5
   const keyboardRows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
-  let { onback, dailyMode = false, dailyCountdown = '' } = $props()
+  let { onback, dailyMode = false, dailyCountdown = '', difficulty = 'normal' } = $props()
   let answer = $state('')
   let guesses = $state([])
   let currentGuess = $state('')
@@ -76,7 +76,7 @@
     checkingMini = false
     activeBoard = 'main'
     try {
-      answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
+      answer = await (dailyMode ? getDailyWord(wordLength, new Date(), difficulty) : getRandomWord(wordLength, difficulty))
       gameState = 'playing'
     } catch {
       gameState = 'error'

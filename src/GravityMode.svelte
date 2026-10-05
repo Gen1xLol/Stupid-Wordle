@@ -6,7 +6,7 @@
   const wordLength = 8
   const maxGuesses = 6
   const keyboardRows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
-  let { onback, dailyMode = false, dailyCountdown = '' } = $props()
+  let { onback, dailyMode = false, dailyCountdown = '', difficulty = 'normal' } = $props()
   let answer = $state('')
   let guesses = $state([])
   let slots = $state(Array(wordLength).fill(''))
@@ -345,7 +345,7 @@
     bodies = []
     checkingGuess = false
     try {
-      answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
+      answer = await (dailyMode ? getDailyWord(wordLength, new Date(), difficulty) : getRandomWord(wordLength, difficulty))
       gameState = 'playing'
       notice = 'Type a word. Move your phone or drag the letters into place.'
     } catch {

@@ -22,6 +22,7 @@
   let page = $state('menu')
   let mode = $state('gun')
   let dailyMode = $state(readDailyPreference())
+  let difficulty = $state(readDifficultyPreference())
   let dailyCountdown = $state('00:00:00')
 
   function readDailyPreference() {
@@ -29,6 +30,14 @@
       return window.localStorage.getItem('stupid-wordle-daily') === 'true'
     } catch {
       return false
+    }
+  }
+
+  function readDifficultyPreference() {
+    try {
+      return window.localStorage.getItem('stupid-wordle-difficulty') === 'hard' ? 'hard' : 'normal'
+    } catch {
+      return 'normal'
     }
   }
 
@@ -46,6 +55,13 @@
     dailyMode = event.currentTarget.checked
     try {
       window.localStorage.setItem('stupid-wordle-daily', String(dailyMode))
+    } catch {}
+  }
+
+  function saveDifficultyPreference(event) {
+    difficulty = event.currentTarget.value === 'hard' ? 'hard' : 'normal'
+    try {
+      window.localStorage.setItem('stupid-wordle-difficulty', difficulty)
     } catch {}
   }
 
@@ -100,7 +116,7 @@
     shotThisTurn = false
     checkingGuess = false
     try {
-      answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
+      answer = await (dailyMode ? getDailyWord(wordLength, new Date(), difficulty) : getRandomWord(wordLength, difficulty))
       gameState = 'playing'
     } catch {
       gameState = 'error'
@@ -215,6 +231,13 @@
         <span class="daily-setting-copy"><strong>Daily word</strong><small>One word each day.</small></span>
         <input type="checkbox" role="switch" aria-label="Daily word mode" checked={dailyMode} onchange={saveDailyPreference} />
       </label>
+      <label class="difficulty-setting">
+        <span class="daily-setting-copy"><strong>Difficulty</strong><small>Choose the answer word list.</small></span>
+        <select value={difficulty} aria-label="Difficulty" onchange={saveDifficultyPreference}>
+          <option value="normal">Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+      </label>
       <button class="mode-card" type="button" onclick={openGame}>
         <span class="mode-icon"><Crosshair size={21} strokeWidth={1.8} /></span>
         <span class="mode-copy"><strong>Wordle, but I have a Gun</strong><small>Get greens, acquire ammo, shoot to reveal</small></span>
@@ -232,9 +255,9 @@
       </button>
     </section>
   {:else if mode === 'gravity'}
-    <GravityMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} />
+    <GravityMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} {difficulty} />
   {:else if mode === 'roulette'}
-    <RouletteMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} />
+    <RouletteMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} {difficulty} />
   {:else}
     <header class="game-header">
       <button class="back-button" type="button" aria-label="Back to variants" onclick={() => page = 'menu'}><ArrowLeft size={18} strokeWidth={1.8} /></button>

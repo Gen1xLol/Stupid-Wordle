@@ -24,16 +24,16 @@ function request(action, data = {}) {
   })
 }
 
-export function getWords(length) {
-  return request('getWords', { length })
+export function getWords(length, difficulty = 'normal') {
+  return request('getWords', { length, difficulty })
 }
 
-export function getRandomWord(length) {
-  return request('getRandomWord', { length })
+export function getRandomWord(length, difficulty = 'normal') {
+  return request('getRandomWord', { length, difficulty })
 }
 
-export function getDailyWord(length, date = new Date()) {
-  return request('getDailyWord', { length, date: date.getTime() })
+export function getDailyWord(length, date = new Date(), difficulty = 'normal') {
+  return request('getDailyWord', { length, date: date.getTime(), difficulty })
 }
 
 export function getRandomRevivalWord(length) {
