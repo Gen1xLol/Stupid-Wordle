@@ -72,9 +72,10 @@
       body.vy += 1350 * dt
       body.x += body.vx * dt
       body.y += body.vy * dt
+      body.spin = Math.max(-5, Math.min(5, body.spin))
       body.angle += body.spin * dt
       body.vx *= Math.pow(0.996, dt * 60)
-      body.spin *= Math.pow(0.997, dt * 60)
+      body.spin *= Math.pow(0.97, dt * 60)
 
       if (body.x < radius) {
         body.x = radius
@@ -123,8 +124,8 @@
             a.vy -= impulse * ny
             b.vx += impulse * nx
             b.vy += impulse * ny
-            a.spin -= ny * impulse * 0.018
-            b.spin += ny * impulse * 0.018
+            a.spin = Math.max(-5, Math.min(5, a.spin - ny * impulse * 0.004))
+            b.spin = Math.max(-5, Math.min(5, b.spin + ny * impulse * 0.004))
           }
         }
       }
@@ -213,7 +214,7 @@
     body.vx = (nextX - body.previousX) / elapsed
     body.vy = (nextY - body.previousY) / elapsed
     body.angle = (body.angle + deltaX * 0.014 + deltaY * 0.004) % (Math.PI * 2)
-    body.spin = Math.max(-10, Math.min(10, body.vx * 0.006))
+    body.spin = Math.max(-5, Math.min(5, body.vx * 0.004))
     body.previousX = nextX
     body.previousY = nextY
     body.dragTime = now
