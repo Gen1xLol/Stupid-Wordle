@@ -55,7 +55,8 @@ export async function getWords(length) {
 export async function getRandomWord(length) {
   const words = await getWords(length)
   if (!words.length) throw new Error('No words are available for this game mode.')
-  return words[Math.floor(Math.random() * words.length)]
+  const index = Math.floor(Math.random() ** 2 * words.length)
+  return words[index]
 }
 
 export async function isAllowedWord(word) {
