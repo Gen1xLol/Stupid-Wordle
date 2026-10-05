@@ -22,8 +22,10 @@
   let height = 0
   let motionPermissionRequested = false
   let motionListening = false
-  let lastImpact = 0
   let sensorGravityX = 0
+  let sensorGravityY = 1350
+  let sensorShakeX = 0
+  let sensorShakeY = 0
 
   function tileSize() {
     return Math.max(24, Math.min(52, (width - 18 - 7 * 5) / 8))
@@ -103,8 +105,8 @@
     const active = bodies.filter(body => !body.dragging)
 
     for (const body of active) {
-      body.vx += sensorGravityX * dt
-      body.vy += 1350 * dt
+      body.vx += (sensorGravityX + sensorShakeX) * dt
+      body.vy += (sensorGravityY + sensorShakeY) * dt
       body.x += body.vx * dt
       body.y += body.vy * dt
       body.spin = Math.max(-5, Math.min(5, body.spin))
@@ -352,24 +354,29 @@
     }
   }
 
-  function nudgeBodies(strength = 1) {
-    for (const body of bodies) {
-      if (body.dragging) continue
-      body.vx += (Math.random() - 0.5) * 560 * strength
-      body.vy -= 180 + Math.random() * 970 * strength
-      body.spin += (Math.random() - 0.5) * 8 * strength
-    }
-  }
-
   function handleMotion(event) {
-    const gravityX = event.accelerationIncludingGravity?.x
-    if (Number.isFinite(gravityX)) sensorGravityX = Math.max(-1500, Math.min(1500, gravityX * 105))
+    const orientation = ((window.screen.orientation?.angle ?? window.orientation ?? 0) * Math.PI) / 180
+    const cosine = Math.cos(orientation)
+    const sine = Math.sin(orientation)
+    const gravity = event.accelerationIncludingGravity
+    if (Number.isFinite(gravity?.x) && Number.isFinite(gravity?.y)) {
+      const scale = 1350 / 9.81
+      const targetX = Math.max(-1350, Math.min(1350, (-gravity.x * cosine - gravity.y * sine) * scale))
+      const targetY = Math.max(-1350, Math.min(1350, (-gravity.x * sine + gravity.y * cosine) * scale))
+      sensorGravityX += (targetX - sensorGravityX) * 0.35
+      sensorGravityY += (targetY - sensorGravityY) * 0.35
+    }
+
     const acceleration = event.acceleration
-    const magnitude = Math.hypot(acceleration?.x ?? 0, acceleration?.y ?? 0, acceleration?.z ?? 0)
-    const now = performance.now()
-    if (magnitude > 12 && now - lastImpact > 450) {
-      nudgeBodies(Math.min(1.4, magnitude / 16))
-      lastImpact = now
+    if (Number.isFinite(acceleration?.x) && Number.isFinite(acceleration?.y)) {
+      const scale = 55
+      const targetX = Math.max(-1100, Math.min(1100, (-acceleration.x * cosine - acceleration.y * sine) * scale))
+      const targetY = Math.max(-1100, Math.min(1100, (-acceleration.x * sine + acceleration.y * cosine) * scale))
+      sensorShakeX += (targetX - sensorShakeX) * 0.55
+      sensorShakeY += (targetY - sensorShakeY) * 0.55
+    } else {
+      sensorShakeX *= 0.7
+      sensorShakeY *= 0.7
     }
   }
 
