@@ -1,13 +1,13 @@
 <script>
   import { onMount, tick } from 'svelte'
   import { ArrowLeft, Delete, Dices } from 'lucide-svelte'
-  import { getRandomWord, isAllowedWord } from './wordPicker.js'
+  import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
 
   const wordLength = 8
   const miniLength = 4
   const miniMaxGuesses = 5
   const keyboardRows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
-  let { onback } = $props()
+  let { onback, dailyMode = false, dailyCountdown = '' } = $props()
   let answer = $state('')
   let guesses = $state([])
   let currentGuess = $state('')
@@ -76,7 +76,7 @@
     checkingMini = false
     activeBoard = 'main'
     try {
-      answer = await getRandomWord(wordLength)
+      answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
       gameState = 'playing'
     } catch {
       gameState = 'error'
@@ -199,7 +199,7 @@
 
 <header class="game-header roulette-header">
   <button class="back-button" type="button" aria-label="Back to variants" onclick={onback}><ArrowLeft size={18} strokeWidth={1.8} /></button>
-  <h1>Wordle, but it's Russian Roulette</h1>
+  <h1>Wordle, but it's Russian Roulette{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
 </header>
 
 <section class="roulette-panel" aria-label="Wordle, but it's Russian Roulette">

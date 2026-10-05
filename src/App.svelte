@@ -1,5 +1,6 @@
 <script>
-  import { getRandomWord, isAllowedWord } from './wordPicker.js'
+  import { onMount } from 'svelte'
+  import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
   import { ArrowLeft, ArrowRight, Crosshair, Delete, MoveDown, Dices } from 'lucide-svelte'
   import GravityMode from './GravityMode.svelte'
   import RouletteMode from './RouletteMode.svelte'
@@ -19,6 +20,39 @@
   let checkingGuess = $state(false)
   let page = $state('menu')
   let mode = $state('gun')
+  let dailyMode = $state(readDailyPreference())
+  let dailyCountdown = $state('00:00:00')
+
+  function readDailyPreference() {
+    try {
+      return window.localStorage.getItem('stupid-wordle-daily') === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  function updateDailyCountdown() {
+    const now = new Date()
+    const nextDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+    const secondsLeft = Math.max(0, Math.ceil((nextDay - now.getTime()) / 1000))
+    const hours = String(Math.floor(secondsLeft / 3600)).padStart(2, '0')
+    const minutes = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, '0')
+    const seconds = String(secondsLeft % 60).padStart(2, '0')
+    dailyCountdown = `${hours}:${minutes}:${seconds}`
+  }
+
+  function saveDailyPreference(event) {
+    dailyMode = event.currentTarget.checked
+    try {
+      window.localStorage.setItem('stupid-wordle-daily', String(dailyMode))
+    } catch {}
+  }
+
+  onMount(() => {
+    updateDailyCountdown()
+    const timer = setInterval(updateDailyCountdown, 1000)
+    return () => clearInterval(timer)
+  })
 
   function evaluateGuess(guess) {
     const result = Array(wordLength).fill('absent')
@@ -64,7 +98,7 @@
     ammo = 0
     checkingGuess = false
     try {
-      answer = await getRandomWord(wordLength)
+      answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
       gameState = 'playing'
     } catch {
       gameState = 'error'
@@ -170,33 +204,38 @@
   {#if page === 'menu'}
     <header class="masthead">
       <a class="brand" href="./" aria-label="Stupid Wordle home">STUPID WORDLE</a>
+      {#if dailyMode}<span class="menu-daily-countdown">{dailyCountdown} until next word</span>{/if}
     </header>
     <section class="wordle-list" aria-labelledby="wordle-list-title">
       <h1 id="wordle-list-title">Variants</h1>
+      <label class="daily-setting">
+        <span class="daily-setting-copy"><strong>Daily word</strong><small>One word each day.</small></span>
+        <input type="checkbox" role="switch" aria-label="Daily word mode" checked={dailyMode} onchange={saveDailyPreference} />
+      </label>
       <button class="mode-card" type="button" onclick={openGame}>
         <span class="mode-icon"><Crosshair size={21} strokeWidth={1.8} /></span>
-        <span class="mode-copy"><strong>Wordle, but I have a Gun</strong><small>8 letters - get greens, acquire ammo, shoot to reveal</small></span>
+        <span class="mode-copy"><strong>Wordle, but I have a Gun</strong><small>Get greens, acquire ammo, shoot to reveal</small></span>
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
       </button>
       <button class="mode-card gravity-mode-card" type="button" onclick={openGravity}>
         <span class="mode-icon gravity-mode-icon"><MoveDown size={21} strokeWidth={1.8} /></span>
-        <span class="mode-copy"><strong>Wordle, but gravity was just invented</strong><small>Letters fall, wobble, and bump around. Shake to line them up.</small></span>
+        <span class="mode-copy"><strong>Wordle, but gravity was just invented</strong><small>Letters fall around with realistic-ish physics.</small></span>
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
       </button>
       <button class="mode-card roulette-mode-card" type="button" onclick={openRoulette}>
         <span class="mode-icon roulette-mode-icon"><Dices size={21} strokeWidth={1.8} /></span>
-        <span class="mode-copy"><strong>Wordle, but it's Russian Roulette</strong><small>Every guess costs a letter. Win it back in a mini Wordle.</small></span>
+        <span class="mode-copy"><strong>Wordle, but it's Russian Roulette</strong><small>Every guess costs a letter, win it back in a mini Wordle</small></span>
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
       </button>
     </section>
   {:else if mode === 'gravity'}
-    <GravityMode onback={() => page = 'menu'} />
+    <GravityMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} />
   {:else if mode === 'roulette'}
-    <RouletteMode onback={() => page = 'menu'} />
+    <RouletteMode onback={() => page = 'menu'} {dailyMode} {dailyCountdown} />
   {:else}
     <header class="game-header">
       <button class="back-button" type="button" aria-label="Back to variants" onclick={() => page = 'menu'}><ArrowLeft size={18} strokeWidth={1.8} /></button>
-      <h1>Wordle, but I have a Gun</h1>
+      <h1>Wordle, but I have a Gun{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
       <div class="ammo-badge" aria-live="polite"><Crosshair class="ammo-icon" size={18} strokeWidth={2} /><span class="ammo-count">{ammo}</span><span class="ammo-label">{ammo === 1 ? 'BULLET' : 'BULLETS'}</span></div>
     </header>
     <section class="game-panel" aria-label="Wordle, but I have a Gun">

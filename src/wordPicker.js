@@ -59,6 +59,18 @@ export async function getRandomWord(length) {
   return words[index]
 }
 
+export async function getDailyWord(length, date = new Date()) {
+  const words = await getWords(length)
+  if (!words.length) throw new Error('No words are available for this game mode.')
+  const dateKey = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
+  let hash = 2166136261
+  for (const character of `${dateKey}:${length}`) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  }
+  const position = (hash >>> 0) / 0x100000000
+  return words[Math.floor(position ** 2 * words.length)]
+}
+
 export async function isAllowedWord(word) {
   const words = await loadAllowedWordSet()
   return words.has(word.toLowerCase())

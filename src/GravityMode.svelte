@@ -1,12 +1,12 @@
 <script>
   import { onMount } from 'svelte'
   import { ArrowLeft, Delete, RotateCcw } from 'lucide-svelte'
-  import { getRandomWord, isAllowedWord } from './wordPicker.js'
+  import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
 
   const wordLength = 8
   const maxGuesses = 6
   const keyboardRows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
-  let { onback } = $props()
+  let { onback, dailyMode = false, dailyCountdown = '' } = $props()
   let answer = $state('')
   let guesses = $state([])
   let slots = $state(Array(wordLength).fill(''))
@@ -345,7 +345,7 @@
     bodies = []
     checkingGuess = false
     try {
-      answer = await getRandomWord(wordLength)
+      answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
       gameState = 'playing'
       notice = 'Type a word. Move your phone or drag the letters into place.'
     } catch {
@@ -417,7 +417,7 @@
 
 <header class="game-header gravity-header">
   <button class="back-button" type="button" aria-label="Back to variants" onclick={onback}><ArrowLeft size={18} strokeWidth={1.8} /></button>
-  <h1>Wordle, but gravity was just invented</h1>
+  <h1>Wordle, but gravity was just invented{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
 </header>
 
 <section class="gravity-panel" aria-label="Wordle, but gravity was just invented" onpointerdown={() => requestMotionAccess(true)}>
