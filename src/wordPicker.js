@@ -1,92 +1,45 @@
-import { Filter } from 'bad-words'
+const pickerWorker = new Worker(new URL('./wordPicker.worker.js', import.meta.url), { type: 'module' })
+const pendingRequests = new Map()
+let nextRequestId = 0
 
-const profanityFilter = new Filter()
-const profaneWords = new Set(profanityFilter.list
-  .map((word) => word.toLowerCase())
-  .filter((word) => !profanityFilter.exclude.includes(word)))
-let wordListPromise
-let allowedWordsPromise
-let allowedWordSet
-let revivalWordListPromise
-const wordsByLength = new Map()
-const revivalWordsByLength = new Map()
+pickerWorker.addEventListener('message', (event) => {
+  const { id, result, error } = event.data
+  const request = pendingRequests.get(id)
+  if (!request) return
+  pendingRequests.delete(id)
+  if (error) request.reject(new Error(error))
+  else request.resolve(result)
+})
 
-function fetchWords(fileName) {
-  return fetch(`${import.meta.env.BASE_URL}${fileName}`)
-    .then((response) => {
-      if (!response.ok) throw new Error(`The ${fileName} word list could not be loaded.`)
-      return response.text()
-    })
-    .then((text) => [...new Set(text
-      .split(/\r?\n/)
-      .map((word) => word.trim().toLowerCase())
-      .filter((word) => /^[a-z]+$/.test(word)))])
+pickerWorker.addEventListener('error', (event) => {
+  for (const request of pendingRequests.values()) request.reject(new Error(event.message || 'The word worker failed.'))
+  pendingRequests.clear()
+})
+
+function request(action, data = {}) {
+  const id = ++nextRequestId
+  return new Promise((resolve, reject) => {
+    pendingRequests.set(id, { resolve, reject })
+    pickerWorker.postMessage({ id, action, ...data })
+  })
 }
 
-function loadWordList() {
-  if (!wordListPromise) {
-    wordListPromise = fetchWords('top_english_words_lower_1000000.txt')
-      .then((words) => words.filter((word) => !profaneWords.has(word)))
-  }
-
-  return wordListPromise
+export function getWords(length) {
+  return request('getWords', { length })
 }
 
-function loadAllowedWordSet() {
-  if (!allowedWordsPromise) {
-    allowedWordsPromise = Promise.all([
-      fetchWords('words_alpha.txt'),
-      fetchWords('top_english_words_lower_1000000.txt')
-    ]).then(([dictionaryWords, commonWords]) => {
-      allowedWordSet = new Set(dictionaryWords)
-      for (const word of commonWords) allowedWordSet.add(word)
-      return allowedWordSet
-    })
-  }
-
-  return allowedWordsPromise
+export function getRandomWord(length) {
+  return request('getRandomWord', { length })
 }
 
-function loadRevivalWordList() {
-  if (!revivalWordListPromise) revivalWordListPromise = fetchWords('google-10000-english-usa-no-swears.txt')
-  return revivalWordListPromise
+export function getDailyWord(length, date = new Date()) {
+  return request('getDailyWord', { length, date: date.getTime() })
 }
 
-export async function getWords(length) {
-  const words = await loadWordList()
-  if (length === undefined) return words
-  if (!wordsByLength.has(length)) wordsByLength.set(length, words.filter((word) => word.length === length))
-  return wordsByLength.get(length)
+export function getRandomRevivalWord(length) {
+  return request('getRandomRevivalWord', { length })
 }
 
-export async function getRandomWord(length) {
-  const words = await getWords(length)
-  if (!words.length) throw new Error('No words are available for this game mode.')
-  const index = Math.floor(Math.random() ** 2 * words.length)
-  return words[index]
-}
-
-export async function getDailyWord(length, date = new Date()) {
-  const words = await getWords(length)
-  if (!words.length) throw new Error('No words are available for this game mode.')
-  const dateKey = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
-  let hash = 2166136261
-  for (const character of `${dateKey}:${length}`) {
-    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
-  }
-  const position = (hash >>> 0) / 0x100000000
-  return words[Math.floor(position ** 2 * words.length)]
-}
-
-export async function getRandomRevivalWord(length) {
-  const words = await loadRevivalWordList()
-  if (!revivalWordsByLength.has(length)) revivalWordsByLength.set(length, words.filter((word) => word.length === length))
-  const matchingWords = revivalWordsByLength.get(length)
-  if (!matchingWords.length) throw new Error('No words are available for the revival game.')
-  return matchingWords[Math.floor(Math.random() * matchingWords.length)]
-}
-
-export async function isAllowedWord(word) {
-  const words = await loadAllowedWordSet()
-  return words.has(word.toLowerCase())
+export function isAllowedWord(word) {
+  return request('isAllowedWord', { word })
 }
