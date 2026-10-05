@@ -574,6 +574,13 @@ button:disabled { cursor: default; }
   cursor: crosshair;
 }
 
+.target-tile.turn-locked {
+  --ring: var(--line);
+  --fill: var(--absent);
+  opacity: 0.42;
+  filter: grayscale(1);
+}
+
 .target-tile:enabled:active { transform: scale(0.94); }
 .target-tile:focus-visible { outline-color: var(--fire); }
 

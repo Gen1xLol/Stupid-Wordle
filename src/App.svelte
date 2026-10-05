@@ -15,6 +15,7 @@
   let solvedPositions = $state(Array(wordLength).fill(false))
   let keyboardState = $state({})
   let ammo = $state(0)
+  let shotThisTurn = $state(false)
   let gameState = $state('loading')
   let notice = $state('')
   let checkingGuess = $state(false)
@@ -96,6 +97,7 @@
     solvedPositions = Array(wordLength).fill(false)
     keyboardState = {}
     ammo = 0
+    shotThisTurn = false
     checkingGuess = false
     try {
       answer = await (dailyMode ? getDailyWord(wordLength) : getRandomWord(wordLength))
@@ -150,6 +152,7 @@
     solvedPositions = nextSolvedPositions
     guesses = [...guesses, guess]
     currentGuess = ''
+    shotThisTurn = false
     ammo += earned
     notice = earned ? `Bullseye. +${earned} ${earned === 1 ? 'bullet' : 'bullets'}.` : 'No new hits. Keep aiming.'
     updateKeyboard(guess)
@@ -185,10 +188,11 @@
   }
 
   function fireAt(index) {
-    if (gameState !== 'playing' || ammo < 1 || revealed[index] || solvedPositions[index]) return
+    if (gameState !== 'playing' || ammo < 1 || shotThisTurn || revealed[index] || solvedPositions[index]) return
+    shotThisTurn = true
     revealed = { ...revealed, [index]: true }
-    ammo -= 1
-    notice = `Shot ${index + 1}: ${answer[index].toUpperCase()}.`
+    ammo = Math.max(0, ammo - 1)
+    notice = `Shot ${index + 1}: ${answer[index].toUpperCase()}. ${ammo} ${ammo === 1 ? 'bullet' : 'bullets'} left.`
   }
 
 </script>
@@ -243,10 +247,11 @@
           <button
             class:revealed={revealed[index]}
             class:solved={solvedPositions[index]}
+            class:turn-locked={shotThisTurn && !revealed[index] && !solvedPositions[index]}
             class="target-tile"
             type="button"
             aria-label={solvedPositions[index] || revealed[index] ? `Position ${index + 1}: ${answer[index]}` : `Shoot position ${index + 1}`}
-            disabled={gameState !== 'playing' || ammo < 1 || revealed[index] || solvedPositions[index]}
+            disabled={gameState !== 'playing' || ammo < 1 || shotThisTurn || revealed[index] || solvedPositions[index]}
             onclick={() => fireAt(index)}
           >{solvedPositions[index] || revealed[index] ? answer[index].toUpperCase() : ''}</button>
         {/each}
