@@ -1,7 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte'
   import { ArrowLeft, Delete, Dices } from 'lucide-svelte'
-  import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
+  import { getRandomWord, getDailyWord, getRandomRevivalWord, isAllowedWord } from './wordPicker.js'
 
   const wordLength = 8
   const miniLength = 4
@@ -52,7 +52,7 @@
     miniGuesses = []
     miniNotice = ''
     try {
-      miniAnswer = await getRandomWord(miniLength)
+      miniAnswer = await getRandomRevivalWord(miniLength)
       miniState = 'playing'
       miniNotice = `Solve it in ${miniMaxGuesses} tries to revive ${letter.toUpperCase()}.`
     } catch {

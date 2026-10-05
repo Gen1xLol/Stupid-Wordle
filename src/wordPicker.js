@@ -7,7 +7,9 @@ const profaneWords = new Set(profanityFilter.list
 let wordListPromise
 let allowedWordsPromise
 let allowedWordSet
+let revivalWordListPromise
 const wordsByLength = new Map()
+const revivalWordsByLength = new Map()
 
 function fetchWords(fileName) {
   return fetch(`${import.meta.env.BASE_URL}${fileName}`)
@@ -45,6 +47,11 @@ function loadAllowedWordSet() {
   return allowedWordsPromise
 }
 
+function loadRevivalWordList() {
+  if (!revivalWordListPromise) revivalWordListPromise = fetchWords('google-10000-english-usa-no-swears.txt')
+  return revivalWordListPromise
+}
+
 export async function getWords(length) {
   const words = await loadWordList()
   if (length === undefined) return words
@@ -69,6 +76,14 @@ export async function getDailyWord(length, date = new Date()) {
   }
   const position = (hash >>> 0) / 0x100000000
   return words[Math.floor(position ** 2 * words.length)]
+}
+
+export async function getRandomRevivalWord(length) {
+  const words = await loadRevivalWordList()
+  if (!revivalWordsByLength.has(length)) revivalWordsByLength.set(length, words.filter((word) => word.length === length))
+  const matchingWords = revivalWordsByLength.get(length)
+  if (!matchingWords.length) throw new Error('No words are available for the revival game.')
+  return matchingWords[Math.floor(Math.random() * matchingWords.length)]
 }
 
 export async function isAllowedWord(word) {
