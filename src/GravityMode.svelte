@@ -29,6 +29,42 @@
     return Math.max(24, Math.min(52, (width - 18 - 7 * 5) / 8))
   }
 
+  function rotatedExtent(angle, size) {
+    const half = size / 2
+    return half * (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)))
+  }
+
+  function getCollision(a, b, size) {
+    const deltaX = b.x - a.x
+    const deltaY = b.y - a.y
+    const axes = [
+      [Math.cos(a.angle), Math.sin(a.angle)],
+      [-Math.sin(a.angle), Math.cos(a.angle)],
+      [Math.cos(b.angle), Math.sin(b.angle)],
+      [-Math.sin(b.angle), Math.cos(b.angle)]
+    ]
+    let smallestOverlap = Infinity
+    let normalX = 0
+    let normalY = 0
+    const half = size / 2
+
+    for (const [axisX, axisY] of axes) {
+      const distance = deltaX * axisX + deltaY * axisY
+      const extentA = half * (Math.abs(Math.cos(a.angle) * axisX + Math.sin(a.angle) * axisY) + Math.abs(-Math.sin(a.angle) * axisX + Math.cos(a.angle) * axisY))
+      const extentB = half * (Math.abs(Math.cos(b.angle) * axisX + Math.sin(b.angle) * axisY) + Math.abs(-Math.sin(b.angle) * axisX + Math.cos(b.angle) * axisY))
+      const overlap = extentA + extentB - Math.abs(distance)
+      if (overlap <= 0) return null
+      if (overlap < smallestOverlap) {
+        smallestOverlap = overlap
+        const direction = distance < 0 ? -1 : 1
+        normalX = axisX * direction
+        normalY = axisY * direction
+      }
+    }
+
+    return { normalX, normalY, overlap: smallestOverlap }
+  }
+
   function floorY() {
     return height - 18
   }
@@ -45,7 +81,7 @@
     width = rect.width
     height = rect.height
     for (const body of bodies) {
-      if (!body.dragging) body.y = Math.min(body.y, floorY() - tileSize() * 0.42)
+      if (!body.dragging) body.y = Math.min(body.y, floorY() - rotatedExtent(body.angle, tileSize()))
     }
   }
 
@@ -63,7 +99,6 @@
     lastFrame = time
     if (!width || !height) measure()
     const size = tileSize()
-    const radius = size * 0.42
     const bottom = floorY()
     const active = bodies.filter(body => !body.dragging)
 
@@ -74,21 +109,23 @@
       body.y += body.vy * dt
       body.spin = Math.max(-5, Math.min(5, body.spin))
       body.angle += body.spin * dt
+      const extentX = rotatedExtent(body.angle, size)
+      const extentY = extentX
       body.vx *= Math.pow(0.996, dt * 60)
       body.spin *= Math.pow(0.97, dt * 60)
 
-      if (body.x < radius) {
-        body.x = radius
+      if (body.x < extentX) {
+        body.x = extentX
         body.vx = Math.abs(body.vx) * 0.55
         body.spin += body.vy * 0.002
-      } else if (body.x > width - radius) {
-        body.x = width - radius
+      } else if (body.x > width - extentX) {
+        body.x = width - extentX
         body.vx = -Math.abs(body.vx) * 0.55
         body.spin -= body.vy * 0.002
       }
 
-      if (body.y > bottom - radius) {
-        body.y = bottom - radius
+      if (body.y > bottom - extentY) {
+        body.y = bottom - extentY
         if (body.vy > 35) body.vy *= -0.3
         else body.vy = 0
         body.vx *= 0.86
@@ -101,38 +138,31 @@
         for (let second = first + 1; second < active.length; second += 1) {
           const a = active[first]
           const b = active[second]
-          let dx = b.x - a.x
-          let dy = b.y - a.y
-          let distance = Math.hypot(dx, dy)
-          const minimum = radius * 2
-          if (distance >= minimum) continue
-          if (distance < 0.001) {
-            dx = 0.01
-            distance = 0.01
-          }
-          const nx = dx / distance
-          const ny = dy / distance
-          const overlap = (minimum - distance) * 0.51
-          a.x -= nx * overlap
-          a.y -= ny * overlap
-          b.x += nx * overlap
-          b.y += ny * overlap
-          const relative = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny
+          const collision = getCollision(a, b, size)
+          if (!collision) continue
+          const { normalX, normalY, overlap } = collision
+          const correction = (overlap + 0.01) * 0.51
+          a.x -= normalX * correction
+          a.y -= normalY * correction
+          b.x += normalX * correction
+          b.y += normalY * correction
+          const relative = (b.vx - a.vx) * normalX + (b.vy - a.vy) * normalY
           if (relative < 0) {
             const impulse = -relative * 0.48
-            a.vx -= impulse * nx
-            a.vy -= impulse * ny
-            b.vx += impulse * nx
-            b.vy += impulse * ny
-            a.spin = Math.max(-5, Math.min(5, a.spin - ny * impulse * 0.004))
-            b.spin = Math.max(-5, Math.min(5, b.spin + ny * impulse * 0.004))
+            a.vx -= impulse * normalX
+            a.vy -= impulse * normalY
+            b.vx += impulse * normalX
+            b.vy += impulse * normalY
+            a.spin = Math.max(-5, Math.min(5, a.spin - normalY * impulse * 0.004))
+            b.spin = Math.max(-5, Math.min(5, b.spin + normalY * impulse * 0.004))
           }
         }
       }
       for (const body of active) {
-        body.x = Math.max(radius, Math.min(width - radius, body.x))
-        if (body.y > bottom - radius) {
-          body.y = bottom - radius
+        const extent = rotatedExtent(body.angle, size)
+        body.x = Math.max(extent, Math.min(width - extent, body.x))
+        if (body.y > bottom - extent) {
+          body.y = bottom - extent
           if (body.vy > 35) body.vy *= -0.25
           else body.vy = 0
           body.vx *= 0.86
