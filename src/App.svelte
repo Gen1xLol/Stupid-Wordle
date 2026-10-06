@@ -5,6 +5,7 @@
   import { ArrowLeft, ArrowRight, Crosshair, Delete, MoveDown, Dices } from 'lucide-svelte'
   import GravityMode from './GravityMode.svelte'
   import RouletteMode from './RouletteMode.svelte'
+  import ModeInfo from './ModeInfo.svelte'
 
   const wordLength = 8
   const maxGuesses = 6
@@ -240,21 +241,30 @@
           <option value="hard">Hard</option>
         </select>
       </label>
-      <button class="mode-card" type="button" onclick={openGame} in:fly={{ y: 8, duration: 180, delay: 40 }}>
-        <span class="mode-icon"><Crosshair size={21} strokeWidth={1.8} /></span>
-        <span class="mode-copy"><strong>Wordle, but I have a Gun</strong><small>Get greens, acquire ammo, shoot to reveal</small></span>
+      <div class="mode-card" in:fly={{ y: 8, duration: 180, delay: 40 }}>
+        <button class="mode-card-select" type="button" onclick={openGame}>
+          <span class="mode-icon"><Crosshair size={21} strokeWidth={1.8} /></span>
+          <span class="mode-copy"><strong>Wordle, but I have a Gun</strong><small>Get greens, acquire ammo, shoot to reveal</small></span>
+        </button>
+        <ModeInfo mode="gun" />
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
-      </button>
-      <button class="mode-card gravity-mode-card" type="button" onclick={openGravity} in:fly={{ y: 8, duration: 180, delay: 85 }}>
-        <span class="mode-icon gravity-mode-icon"><MoveDown size={21} strokeWidth={1.8} /></span>
-        <span class="mode-copy"><strong>Wordle, but gravity was just invented</strong><small>Letters fall around with realistic-ish physics.</small></span>
+      </div>
+      <div class="mode-card gravity-mode-card" in:fly={{ y: 8, duration: 180, delay: 85 }}>
+        <button class="mode-card-select" type="button" onclick={openGravity}>
+          <span class="mode-icon gravity-mode-icon"><MoveDown size={21} strokeWidth={1.8} /></span>
+          <span class="mode-copy"><strong>Wordle, but gravity was just invented</strong><small>Letters fall around with realistic-ish physics.</small></span>
+        </button>
+        <ModeInfo mode="gravity" />
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
-      </button>
-      <button class="mode-card roulette-mode-card" type="button" onclick={openRoulette} in:fly={{ y: 8, duration: 180, delay: 130 }}>
-        <span class="mode-icon roulette-mode-icon"><Dices size={21} strokeWidth={1.8} /></span>
-        <span class="mode-copy"><strong>Wordle, but it's Russian Roulette</strong><small>Every guess costs a letter, win it back in a mini Wordle</small></span>
+      </div>
+      <div class="mode-card roulette-mode-card" in:fly={{ y: 8, duration: 180, delay: 130 }}>
+        <button class="mode-card-select" type="button" onclick={openRoulette}>
+          <span class="mode-icon roulette-mode-icon"><Dices size={21} strokeWidth={1.8} /></span>
+          <span class="mode-copy"><strong>Wordle, but it's Russian Roulette</strong><small>Every guess costs a letter, win it back in a mini Wordle</small></span>
+        </button>
+        <ModeInfo mode="roulette" />
         <ArrowRight class="mode-arrow" size={18} strokeWidth={1.8} />
-      </button>
+      </div>
     </section>
     </div>
   {:else if mode === 'gravity'}
@@ -267,9 +277,10 @@
     </div>
   {:else}
     <div class="screen-view" in:fly={{ x: 14, duration: 220 }} out:fly={{ x: -10, duration: 150 }}>
-    <header class="game-header">
+      <header class="game-header gun-header">
       <button class="back-button" type="button" aria-label="Back to variants" onclick={() => page = 'menu'}><ArrowLeft size={18} strokeWidth={1.8} /></button>
       <h1>Wordle, but I have a Gun{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
+      <ModeInfo mode="gun" />
       <div class="ammo-badge" aria-live="polite"><Crosshair class="ammo-icon" size={18} strokeWidth={2} /><span class="ammo-count">{ammo}</span><span class="ammo-label">{ammo === 1 ? 'BULLET' : 'BULLETS'}</span></div>
     </header>
     <section class="game-panel" aria-label="Wordle, but I have a Gun">

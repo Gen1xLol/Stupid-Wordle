@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { ArrowLeft, Delete, RotateCcw } from 'lucide-svelte'
   import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
+  import ModeInfo from './ModeInfo.svelte'
 
   const wordLength = 8
   const maxGuesses = 6
@@ -418,6 +419,7 @@
 <header class="game-header gravity-header">
   <button class="back-button" type="button" aria-label="Back to variants" onclick={onback}><ArrowLeft size={18} strokeWidth={1.8} /></button>
   <h1>Wordle, but gravity was just invented{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
+  <ModeInfo mode="gravity" />
 </header>
 
 <section class="gravity-panel" aria-label="Wordle, but gravity was just invented" onpointerdown={() => requestMotionAccess(true)}>

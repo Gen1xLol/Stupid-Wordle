@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte'
   import { ArrowLeft, Delete, Dices } from 'lucide-svelte'
   import { getRandomWord, getDailyWord, getRandomRevivalWord, isAllowedWord } from './wordPicker.js'
+  import ModeInfo from './ModeInfo.svelte'
 
   const wordLength = 8
   const miniLength = 4
@@ -200,6 +201,7 @@
 <header class="game-header roulette-header">
   <button class="back-button" type="button" aria-label="Back to variants" onclick={onback}><ArrowLeft size={18} strokeWidth={1.8} /></button>
   <h1>Wordle, but it's Russian Roulette{#if dailyMode}<small class="daily-header-countdown">{dailyCountdown} until next word</small>{/if}</h1>
+  <ModeInfo mode="roulette" />
 </header>
 
 <section class="roulette-panel" aria-label="Wordle, but it's Russian Roulette">
