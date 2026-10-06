@@ -61,14 +61,23 @@ async function getWords(length, difficulty = 'normal') {
   return wordsByLength.get(cacheKey)
 }
 
+function shuffleWords(words) {
+  const shuffledWords = [...words]
+  for (let index = shuffledWords.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[shuffledWords[index], shuffledWords[swapIndex]] = [shuffledWords[swapIndex], shuffledWords[index]]
+  }
+  return shuffledWords
+}
+
 async function getRandomWord(length, difficulty) {
-  const words = await getWords(length, difficulty)
+  const words = shuffleWords(await getWords(length, difficulty))
   if (!words.length) throw new Error('No words are available for this game mode.')
   return words[Math.floor(Math.random() ** 2 * words.length)]
 }
 
 async function getDailyWord(length, timestamp, difficulty) {
-  const words = await getWords(length, difficulty)
+  const words = shuffleWords(await getWords(length, difficulty))
   if (!words.length) throw new Error('No words are available for this game mode.')
   const date = new Date(timestamp)
   const dateKey = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
@@ -81,7 +90,7 @@ async function getDailyWord(length, timestamp, difficulty) {
 async function getRandomRevivalWord(length) {
   const words = await loadRevivalWords()
   if (!revivalWordsByLength.has(length)) revivalWordsByLength.set(length, words.filter((word) => word.length === length))
-  const matchingWords = revivalWordsByLength.get(length)
+  const matchingWords = shuffleWords(revivalWordsByLength.get(length))
   if (!matchingWords.length) throw new Error('No words are available for the revival game.')
   return matchingWords[Math.floor(Math.random() * matchingWords.length)]
 }
