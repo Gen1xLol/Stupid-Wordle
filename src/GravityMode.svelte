@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte'
+  import Matter from 'matter-js'
   import { ArrowLeft, Delete, RotateCcw } from 'lucide-svelte'
   import { getRandomWord, getDailyWord, isAllowedWord } from './wordPicker.js'
   import ModeInfo from './ModeInfo.svelte'
@@ -16,6 +17,8 @@
   let checkingGuess = $state(false)
   let stage
   let bodies = $state.raw([])
+  const engine = Matter.Engine.create({ enableSleeping: true })
+  let boundaries = []
   let nextId = 0
   let frame = 0
   let lastFrame = 0
@@ -32,46 +35,6 @@
     return Math.max(24, Math.min(52, (width - 18 - 7 * 5) / 8))
   }
 
-  function rotatedExtent(angle, size) {
-    const half = size / 2
-    return half * (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)))
-  }
-
-  function getCollision(a, b, size) {
-    const deltaX = b.x - a.x
-    const deltaY = b.y - a.y
-    const axes = [
-      [Math.cos(a.angle), Math.sin(a.angle)],
-      [-Math.sin(a.angle), Math.cos(a.angle)],
-      [Math.cos(b.angle), Math.sin(b.angle)],
-      [-Math.sin(b.angle), Math.cos(b.angle)]
-    ]
-    let smallestOverlap = Infinity
-    let normalX = 0
-    let normalY = 0
-    const half = size / 2
-
-    for (const [axisX, axisY] of axes) {
-      const distance = deltaX * axisX + deltaY * axisY
-      const extentA = half * (Math.abs(Math.cos(a.angle) * axisX + Math.sin(a.angle) * axisY) + Math.abs(-Math.sin(a.angle) * axisX + Math.cos(a.angle) * axisY))
-      const extentB = half * (Math.abs(Math.cos(b.angle) * axisX + Math.sin(b.angle) * axisY) + Math.abs(-Math.sin(b.angle) * axisX + Math.cos(b.angle) * axisY))
-      const overlap = extentA + extentB - Math.abs(distance)
-      if (overlap <= 0) return null
-      if (overlap < smallestOverlap) {
-        smallestOverlap = overlap
-        const direction = distance < 0 ? -1 : 1
-        normalX = axisX * direction
-        normalY = axisY * direction
-      }
-    }
-
-    return { normalX, normalY, overlap: smallestOverlap }
-  }
-
-  function floorY() {
-    return height - 18
-  }
-
   function targetX(index) {
     const size = tileSize()
     const rowWidth = size * wordLength + 5 * (wordLength - 1)
@@ -83,95 +46,66 @@
     const rect = stage.getBoundingClientRect()
     width = rect.width
     height = rect.height
-    for (const body of bodies) {
-      if (!body.dragging) body.y = Math.min(body.y, floorY() - rotatedExtent(body.angle, tileSize()))
-    }
+    updateBoundaries()
   }
 
   function renderBody(body) {
     if (!body.element) return
-    body.element.style.left = `${body.x}px`
-    body.element.style.top = `${body.y}px`
-    body.element.style.transform = `translate(-50%, -50%) rotate(${body.angle}rad)`
+    body.element.style.left = `${body.physics.position.x}px`
+    body.element.style.top = `${body.physics.position.y}px`
+    body.element.style.transform = `translate(-50%, -50%) rotate(${body.physics.angle}rad)`
+  }
+
+  function updateBoundaries() {
+    if (!width || !height) return
+    const thickness = 120
+    const positions = [
+      [width / 2, height + thickness / 2 - 18, width + thickness * 2, thickness],
+      [-thickness / 2, height / 2, thickness, height + thickness * 2],
+      [width + thickness / 2, height / 2, thickness, height + thickness * 2],
+      [width / 2, -thickness / 2, width + thickness * 2, thickness]
+    ]
+    if (!boundaries.length) {
+      boundaries = positions.map(([x, y, w, h]) => Matter.Bodies.rectangle(x, y, w, h, { isStatic: true, friction: 0.9, restitution: 0.12 }))
+      Matter.Composite.add(engine.world, boundaries)
+      return
+    }
+    boundaries.forEach((boundary, index) => {
+      const [x, y, w, h] = positions[index]
+      Matter.Body.setPosition(boundary, { x, y })
+      if (boundary.bounds.max.x - boundary.bounds.min.x !== w || boundary.bounds.max.y - boundary.bounds.min.y !== h) {
+        Matter.Composite.remove(engine.world, boundary)
+        boundaries[index] = Matter.Bodies.rectangle(x, y, w, h, { isStatic: true, friction: 0.9, restitution: 0.12 })
+        Matter.Composite.add(engine.world, boundaries[index])
+      }
+    })
+    for (const item of bodies) {
+      const nextSize = tileSize()
+      if (item.physicsSize !== nextSize) {
+        const scale = nextSize / item.physicsSize
+        Matter.Body.scale(item.physics, scale, scale)
+        item.physicsSize = nextSize
+      }
+      Matter.Body.setPosition(item.physics, {
+        x: Math.max(nextSize / 2, Math.min(width - nextSize / 2, item.physics.position.x)),
+        y: Math.min(item.physics.position.y, height - 18 - nextSize / 2)
+      })
+    }
+  }
+
+  function removeBodies(items = bodies) {
+    Matter.Composite.remove(engine.world, items.map(item => item.physics))
+    bodies = bodies.filter(item => !items.includes(item))
   }
 
   function tick(time) {
     frame = requestAnimationFrame(tick)
-    if (!lastFrame) lastFrame = time
-    const dt = Math.min(0.032, (time - lastFrame) / 1000)
-    lastFrame = time
     if (!width || !height) measure()
-    const size = tileSize()
-    const bottom = floorY()
-    const active = bodies.filter(body => !body.dragging)
-
-    for (const body of active) {
-      body.vx += (sensorGravityX + sensorShakeX) * dt
-      body.vy += (sensorGravityY + sensorShakeY) * dt
-      body.x += body.vx * dt
-      body.y += body.vy * dt
-      body.spin = Math.max(-5, Math.min(5, body.spin))
-      body.angle += body.spin * dt
-      const extentX = rotatedExtent(body.angle, size)
-      const extentY = extentX
-      body.vx *= Math.pow(0.996, dt * 60)
-      body.spin *= Math.pow(0.97, dt * 60)
-
-      if (body.x < extentX) {
-        body.x = extentX
-        body.vx = Math.abs(body.vx) * 0.55
-        body.spin += body.vy * 0.002
-      } else if (body.x > width - extentX) {
-        body.x = width - extentX
-        body.vx = -Math.abs(body.vx) * 0.55
-        body.spin -= body.vy * 0.002
-      }
-
-      if (body.y > bottom - extentY) {
-        body.y = bottom - extentY
-        if (body.vy > 35) body.vy *= -0.3
-        else body.vy = 0
-        body.vx *= 0.86
-        body.spin *= 0.82
-      }
-    }
-
-    for (let pass = 0; pass < 2; pass += 1) {
-      for (let first = 0; first < active.length; first += 1) {
-        for (let second = first + 1; second < active.length; second += 1) {
-          const a = active[first]
-          const b = active[second]
-          const collision = getCollision(a, b, size)
-          if (!collision) continue
-          const { normalX, normalY, overlap } = collision
-          const correction = (overlap + 0.01) * 0.51
-          a.x -= normalX * correction
-          a.y -= normalY * correction
-          b.x += normalX * correction
-          b.y += normalY * correction
-          const relative = (b.vx - a.vx) * normalX + (b.vy - a.vy) * normalY
-          if (relative < 0) {
-            const impulse = -relative * 0.48
-            a.vx -= impulse * normalX
-            a.vy -= impulse * normalY
-            b.vx += impulse * normalX
-            b.vy += impulse * normalY
-            a.spin = Math.max(-5, Math.min(5, a.spin - normalY * impulse * 0.004))
-            b.spin = Math.max(-5, Math.min(5, b.spin + normalY * impulse * 0.004))
-          }
-        }
-      }
-      for (const body of active) {
-        const extent = rotatedExtent(body.angle, size)
-        body.x = Math.max(extent, Math.min(width - extent, body.x))
-        if (body.y > bottom - extent) {
-          body.y = bottom - extent
-          if (body.vy > 35) body.vy *= -0.25
-          else body.vy = 0
-          body.vx *= 0.86
-        }
-      }
-    }
+    engine.gravity.x = (sensorGravityX + sensorShakeX) / 1350
+    engine.gravity.y = (sensorGravityY + sensorShakeY) / 1350
+    const delta = lastFrame ? Math.min(32, time - lastFrame) : 16.667
+    lastFrame = time
+    Matter.Engine.update(engine, delta)
 
     for (const body of bodies) renderBody(body)
   }
@@ -179,15 +113,21 @@
   function spawn(letter) {
     if (gameState !== 'playing' || slots.every(Boolean)) return
     const size = tileSize()
+    const physics = Matter.Bodies.rectangle(
+      Math.max(size / 2, Math.min(width - size / 2, width / 2 + (Math.random() - 0.5) * width * 0.62)),
+      size / 2 + Math.random() * Math.min(32, height * 0.1),
+      size,
+      size,
+      { friction: 0.72, frictionStatic: 0.95, frictionAir: 0.008, restitution: 0.12 }
+    )
+    Matter.Body.setAngle(physics, (Math.random() - 0.5) * 0.18)
+    Matter.Body.setVelocity(physics, { x: (Math.random() - 0.5) * 1.6, y: Math.random() * 0.4 })
+    Matter.Composite.add(engine.world, physics)
     const body = {
       id: ++nextId,
       letter,
-      x: Math.max(size / 2, Math.min(width - size / 2, width / 2 + (Math.random() - 0.5) * width * 0.62)),
-      y: size / 2 + Math.random() * Math.min(32, height * 0.1),
-      vx: (Math.random() - 0.5) * 100,
-      vy: Math.random() * 25,
-      angle: (Math.random() - 0.5) * 0.18,
-      spin: (Math.random() - 0.5) * 1.7,
+      physics,
+      physicsSize: size,
       dragging: false,
       element: undefined
     }
@@ -201,7 +141,7 @@
       spawn(key.toLowerCase())
     } else if (key === 'Backspace') {
       const body = [...bodies].reverse().find(item => !item.dragging)
-      if (body) bodies = bodies.filter(item => item.id !== body.id)
+      if (body) removeBodies([body])
     } else if (key === 'Enter') {
       lockLetters()
     }
@@ -223,15 +163,13 @@
     event.currentTarget.style.zIndex = '3'
     const rect = stage.getBoundingClientRect()
     body.dragging = true
-    body.vx = 0
-    body.vy = 0
+    Matter.Body.setStatic(body.physics, true)
     body.dragX = event.clientX - rect.left
     body.dragY = event.clientY - rect.top
     body.dragTime = performance.now()
     body.previousX = body.dragX
     body.previousY = body.dragY
-    body.x = body.dragX
-    body.y = body.dragY
+    Matter.Body.setPosition(body.physics, { x: body.dragX, y: body.dragY })
     renderBody(body)
   }
 
@@ -244,23 +182,29 @@
     const elapsed = Math.max(0.012, (now - body.dragTime) / 1000)
     const deltaX = nextX - body.previousX
     const deltaY = nextY - body.previousY
-    body.vx = (nextX - body.previousX) / elapsed
-    body.vy = (nextY - body.previousY) / elapsed
-    body.angle = (body.angle + deltaX * 0.014 + deltaY * 0.004) % (Math.PI * 2)
-    body.spin = Math.max(-5, Math.min(5, body.vx * 0.004))
+    const velocity = {
+      x: Math.max(-14, Math.min(14, (nextX - body.previousX) / elapsed / 60)),
+      y: Math.max(-14, Math.min(14, (nextY - body.previousY) / elapsed / 60))
+    }
+    Matter.Body.setPosition(body.physics, {
+      x: Math.max(tileSize() * 0.45, Math.min(width - tileSize() * 0.45, nextX)),
+      y: Math.max(tileSize() * 0.45, Math.min(height - tileSize() * 0.45, nextY))
+    })
+    Matter.Body.setAngle(body.physics, body.physics.angle + (nextX - body.previousX) / Math.max(1, tileSize() / 2))
+    body.dragVelocity = velocity
+    body.dragAngularVelocity = Math.max(-0.13, Math.min(0.13, velocity.x / Math.max(1, tileSize() / 2)))
     body.previousX = nextX
     body.previousY = nextY
     body.dragTime = now
-    body.x = Math.max(tileSize() * 0.45, Math.min(width - tileSize() * 0.45, nextX))
-    body.y = Math.max(tileSize() * 0.45, Math.min(height - tileSize() * 0.45, nextY))
     renderBody(body)
   }
 
   function dragEnd(body) {
     body.dragging = false
     if (body.element) body.element.style.zIndex = '1'
-    body.vx = Math.max(-850, Math.min(850, body.vx))
-    body.vy = Math.max(-850, Math.min(850, body.vy))
+    Matter.Body.setStatic(body.physics, false)
+    Matter.Body.setVelocity(body.physics, body.dragVelocity ?? { x: 0, y: 0 })
+    Matter.Body.setAngularVelocity(body.physics, body.dragAngularVelocity ?? 0)
   }
 
   async function lockLetters() {
@@ -272,7 +216,7 @@
       if (nextSlots[index]) continue
       const candidate = bodies
         .filter(body => !consumed.has(body.id))
-        .map(body => ({ body, distance: Math.hypot(body.x - targetX(index), body.y - height / 2) }))
+        .map(body => ({ body, distance: Math.hypot(body.physics.position.x - targetX(index), body.physics.position.y - height / 2) }))
         .filter(item => item.distance < tileSize() * 0.53)
         .sort((a, b) => a.distance - b.distance)[0]
       if (!candidate) continue
@@ -285,7 +229,7 @@
       return
     }
     slots = nextSlots
-    bodies = bodies.filter(body => !consumed.has(body.id))
+    removeBodies(bodies.filter(body => consumed.has(body.id)))
     notice = `${locked} ${locked === 1 ? 'letter' : 'letters'} locked.`
     if (slots.every(Boolean)) await submitGuess()
   }
@@ -293,7 +237,7 @@
   function clearRow() {
     if (checkingGuess || gameState !== 'playing') return
     slots = Array(wordLength).fill('')
-    bodies = []
+    removeBodies()
     notice = 'Row cleared. Start with a fresh drop.'
   }
 
@@ -326,7 +270,7 @@
     }
     guesses = [...guesses, guess]
     slots = Array(wordLength).fill('')
-    bodies = []
+    removeBodies()
     if (guess === answer) {
       gameState = 'won'
       notice = 'Gravity did its job. You got it.'
@@ -343,7 +287,7 @@
     notice = ''
     guesses = []
     slots = Array(wordLength).fill('')
-    bodies = []
+    removeBodies()
     checkingGuess = false
     try {
       answer = await (dailyMode ? getDailyWord(wordLength, new Date(), difficulty) : getRandomWord(wordLength, difficulty))
@@ -410,6 +354,7 @@
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', measure)
       if (motionListening) window.removeEventListener('devicemotion', handleMotion)
+      Matter.Engine.clear(engine)
     }
   })
 </script>
