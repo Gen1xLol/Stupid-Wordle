@@ -203,6 +203,7 @@
     body.dragging = false
     if (body.element) body.element.style.zIndex = '1'
     Matter.Body.setStatic(body.physics, false)
+    Matter.Sleeping.set(body.physics, false)
     Matter.Body.setVelocity(body.physics, body.dragVelocity ?? { x: 0, y: 0 })
     Matter.Body.setAngularVelocity(body.physics, body.dragAngularVelocity ?? 0)
   }
