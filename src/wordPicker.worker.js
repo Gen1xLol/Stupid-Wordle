@@ -77,7 +77,7 @@ async function getRandomWord(length, difficulty) {
 }
 
 async function getDailyWord(length, timestamp, difficulty) {
-  const words = shuffleWords(await getWords(length, difficulty))
+  const words = await getWords(length, difficulty)
   if (!words.length) throw new Error('No words are available for this game mode.')
   const date = new Date(timestamp)
   const dateKey = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
