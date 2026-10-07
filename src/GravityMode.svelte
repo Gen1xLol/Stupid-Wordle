@@ -163,49 +163,36 @@
     event.currentTarget.style.zIndex = '3'
     const rect = stage.getBoundingClientRect()
     body.dragging = true
-    Matter.Body.setStatic(body.physics, true)
-    body.dragX = event.clientX - rect.left
-    body.dragY = event.clientY - rect.top
-    body.dragTime = performance.now()
-    body.previousX = body.dragX
-    body.previousY = body.dragY
-    Matter.Body.setPosition(body.physics, { x: body.dragX, y: body.dragY })
-    renderBody(body)
+    const point = {
+      x: Math.max(0, Math.min(width, event.clientX - rect.left)),
+      y: Math.max(0, Math.min(height, event.clientY - rect.top))
+    }
+    const offset = Matter.Vector.rotate(Matter.Vector.sub(point, body.physics.position), -body.physics.angle)
+    body.dragConstraint = Matter.Constraint.create({
+      bodyB: body.physics,
+      pointA: point,
+      pointB: offset,
+      length: 0,
+      stiffness: 0.18,
+      damping: 0.16
+    })
+    Matter.Composite.add(engine.world, body.dragConstraint)
   }
 
   function dragMove(event, body) {
     if (!body.dragging) return
     const rect = stage.getBoundingClientRect()
-    const now = performance.now()
-    const nextX = event.clientX - rect.left
-    const nextY = event.clientY - rect.top
-    const elapsed = Math.max(0.012, (now - body.dragTime) / 1000)
-    const deltaX = nextX - body.previousX
-    const deltaY = nextY - body.previousY
-    const velocity = {
-      x: Math.max(-14, Math.min(14, (nextX - body.previousX) / elapsed / 60)),
-      y: Math.max(-14, Math.min(14, (nextY - body.previousY) / elapsed / 60))
+    body.dragConstraint.pointA = {
+      x: Math.max(0, Math.min(width, event.clientX - rect.left)),
+      y: Math.max(0, Math.min(height, event.clientY - rect.top))
     }
-    Matter.Body.setPosition(body.physics, {
-      x: Math.max(tileSize() * 0.45, Math.min(width - tileSize() * 0.45, nextX)),
-      y: Math.max(tileSize() * 0.45, Math.min(height - tileSize() * 0.45, nextY))
-    })
-    Matter.Body.setAngle(body.physics, body.physics.angle + (nextX - body.previousX) / Math.max(1, tileSize() / 2))
-    body.dragVelocity = velocity
-    body.dragAngularVelocity = Math.max(-0.13, Math.min(0.13, velocity.x / Math.max(1, tileSize() / 2)))
-    body.previousX = nextX
-    body.previousY = nextY
-    body.dragTime = now
-    renderBody(body)
   }
 
   function dragEnd(body) {
     body.dragging = false
     if (body.element) body.element.style.zIndex = '1'
-    Matter.Body.setStatic(body.physics, false)
-    Matter.Sleeping.set(body.physics, false)
-    Matter.Body.setVelocity(body.physics, body.dragVelocity ?? { x: 0, y: 0 })
-    Matter.Body.setAngularVelocity(body.physics, body.dragAngularVelocity ?? 0)
+    Matter.Composite.remove(engine.world, body.dragConstraint)
+    body.dragConstraint = undefined
   }
 
   async function lockLetters() {
