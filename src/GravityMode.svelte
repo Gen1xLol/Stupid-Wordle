@@ -256,7 +256,7 @@
       notice = 'That word is not in the dictionary. Clear the row to try again.'
       return
     }
-    guesses = [...guesses, guess]
+    guesses = [...guesses, { word: guess, feedback: evaluateGuess(guess) }]
     slots = Array(wordLength).fill('')
     removeBodies()
     if (guess === answer) {
@@ -358,9 +358,9 @@
 <section class="gravity-panel" aria-label="Wordle, but gravity was just invented" onpointerdown={() => requestMotionAccess(true)}>
   <div class="gravity-history" aria-label="Previous guesses">
     {#each guesses as guess, rowIndex}
-      <div class="guess-row submitted" aria-label={`Guess ${rowIndex + 1}`}>
-        {#each [...guess] as letter, index}
-          {@const result = evaluateGuess(guess)[index]}
+      <div class="guess-row submitted" aria-label={`Guess ${rowIndex + 1}: ${guess.word}`}>
+        {#each [...guess.word] as letter, index}
+          {@const result = guess.feedback[index]}
           <div class="guess-tile" class:correct={result === 'correct'} class:present={result === 'present'} class:absent={result === 'absent'}>{letter.toUpperCase()}</div>
         {/each}
       </div>
@@ -374,7 +374,15 @@
     <div class="gravity-stage" bind:this={stage} aria-label="Letters fall inside this play area">
       <div class="gravity-tray">
         {#each Array(wordLength) as _, index}
-          <div class="gravity-slot" class:gravity-slot-filled={slots[index]} aria-label={`Position ${index + 1}${slots[index] ? `: ${slots[index]}` : ''}`}>{slots[index]?.toUpperCase()}</div>
+          {@const slotFeedback = slots.some(Boolean) ? evaluateGuess(slots.join('')) : []}
+          <div
+            class="gravity-slot"
+            class:gravity-slot-filled={slots[index]}
+            class:correct={slots[index] && slotFeedback[index] === 'correct'}
+            class:present={slots[index] && slotFeedback[index] === 'present'}
+            class:absent={slots[index] && slotFeedback[index] === 'absent'}
+            aria-label={`Position ${index + 1}${slots[index] ? `: ${slots[index]}, ${slotFeedback[index]}` : ''}`}
+          >{slots[index]?.toUpperCase()}</div>
         {/each}
       </div>
       {#each bodies as body (body.id)}

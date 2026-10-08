@@ -598,6 +598,9 @@ button:disabled { cursor: default; }
   background: color-mix(in srgb, var(--correct) 14%, var(--surface));
   animation: gravity-lock 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.25);
 }
+.gravity-slot.correct { border-color: var(--correct); background: var(--correct); color: #fff; }
+.gravity-slot.present { border-color: var(--present); background: var(--present); color: var(--on-present); }
+.gravity-slot.absent { border-color: var(--absent); background: var(--absent); color: var(--on-absent); }
 
 .gravity-letter {
   position: absolute;
